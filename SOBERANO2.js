@@ -69,7 +69,13 @@ async function launchStrike(id, authUrl) {
         const cookiePath = path.join(__dirname, 'COOKIES.json');
         if (fs.existsSync(cookiePath)) {
             try {
-                const cookies = JSON.parse(fs.readFileSync(cookiePath));
+                let cookies = JSON.parse(fs.readFileSync(cookiePath));
+                // O protocolo Chrome recusa o sameSite se for null ou não restritivo.
+                cookies = cookies.map(c => {
+                    if (c.sameSite === null || c.sameSite === 'no_restriction') delete c.sameSite;
+                    if (c.storeId === null) delete c.storeId;
+                    return c;
+                });
                 await page.setCookie(...cookies);
                 log(`[${id}] Cookies de sessão carregados e injetados.`, 'SYSTEM');
             } catch (err) {
@@ -192,6 +198,16 @@ process.stdin.on('data', async (data) => {
             const page = activeTabs[packet.id];
             if (page) await page.close();
             delete activeTabs[packet.id];
+        } else if (packet.type === 'PREVIEW') {
+            const page = activeTabs[packet.id];
+            if (page) {
+                try {
+                    const base64 = await page.screenshot({ encoding: 'base64', type: 'webp', quality: 50 });
+                    console.log(JSON.stringify({ type: 'PREVIEW_DATA', id: packet.id, image: base64 }));
+                } catch (err) {
+                    log(`[${packet.id}] Falha ao capturar preview: ${err.message}`, 'ERR');
+                }
+            }
         }
     } catch (e) { }
 });

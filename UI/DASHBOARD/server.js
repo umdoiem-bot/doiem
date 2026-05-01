@@ -52,14 +52,21 @@ function startMotor() {
         cwd: ROOT_DIR
     });
 
+    let stdoutBuffer = '';
     soberanoProcess.stdout.on('data', (data) => {
-        const raw = data.toString().trim();
-        raw.split('\n').forEach(line => {
+        stdoutBuffer += data.toString();
+        const lines = stdoutBuffer.split('\n');
+        stdoutBuffer = lines.pop(); // Mantém o chunk incompleto para o próximo evento
+
+        lines.forEach(line => {
+            line = line.trim();
+            if (!line) return;
+
             try {
                 // Tenta processar como pacote de dados (Telemetria)
                 const packet = JSON.parse(line);
-                if (packet.type === 'TELEMETRY') {
-                    io.emit('telemetry', packet);
+                if (packet.type === 'TELEMETRY' || packet.type === 'PREVIEW_DATA') {
+                    io.emit(packet.type.toLowerCase().replace('_', '-'), packet);
                     return;
                 }
             } catch (e) {}
@@ -70,8 +77,8 @@ function startMotor() {
             const id = matches.length > 1 ? matches[1][1] : (matches.length > 0 ? matches[0][1] : null);
             
             io.emit('signal', { id, msg: line });
+            console.log(line); // O terminal principal só exibe logs humanos, ignorando JSON base64
         });
-        process.stdout.write(data);
     });
 
     soberanoProcess.on('close', () => {
@@ -121,6 +128,10 @@ io.on('connection', (socket) => {
     socket.on('execute-command', (data) => {
         sendToMotor({ type: 'STRIKE', id: data.id, cmd: data.cmd });
     });
+
+    socket.on('request-preview', (id) => {
+        sendToMotor({ type: 'PREVIEW', id });
+    });
 });
 
 const PORT = 3000;
@@ -143,8 +154,8 @@ server.listen(PORT, () => {
     startMotor();
     console.log(`⚙️  SISTEMA EM STANDBY: Aguardando comandos do Cockpit...`);
     
-    // Abre a interface visual automaticamente no CHROME após tudo carregar
-    exec(`start chrome "http://localhost:${PORT}"`, (err) => {
+    // Abre a interface visual automaticamente no CHROME em modo Anônimo (Virgem)
+    exec(`start chrome --incognito "http://localhost:${PORT}"`, (err) => {
         if (err) {
             // Fallback caso chrome não esteja no PATH
             exec(`start "" "http://localhost:${PORT}"`);
