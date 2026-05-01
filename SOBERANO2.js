@@ -65,6 +65,17 @@ async function launchStrike(id, authUrl) {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
         });
 
+        // INJEÇÃO DA SESSÃO PRINCIPAL (Mimetismo de Logon)
+        const cookiePath = path.join(__dirname, 'COOKIES.json');
+        if (fs.existsSync(cookiePath)) {
+            try {
+                const cookies = JSON.parse(fs.readFileSync(cookiePath));
+                await page.setCookie(...cookies);
+                log(`[${id}] Cookies de sessão carregados e injetados.`, 'SYSTEM');
+            } catch (err) {
+                log(`[${id}] Falha ao analisar COOKIES.json: ${err.message}`, 'WARN');
+            }
+        }
 
         // Sincronia Determinística
         log(`[${id}] Sincronizando...`, 'SYSTEM');
