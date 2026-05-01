@@ -1,0 +1,4 @@
+node_modules/
+GHOST_PROFILE/
+.env
+*.log

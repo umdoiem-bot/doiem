@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOBERANO | PURE CONSOLE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #030303;
+            --surface: #0a0a0f;
+            --accent: #00f2ff;
+            --accent-glow: rgba(0, 242, 255, 0.2);
+            --danger: #ff2d55;
+            --success: #00ff7f;
+            --text: #ffffff;
+            --text-dim: #80808a;
+            --border: rgba(255, 255, 255, 0.05);
+            --font: 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            font-family: var(--font);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            letter-spacing: -0.5px;
+        }
+
+        /* HEADER & GLASSMORPHISM */
+        header {
+            padding: 1.2rem 2.5rem;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 500;
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        #count-box {
+            background: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--accent);
+            font-size: 0.65rem;
+            color: var(--accent);
+        }
+
+        /* MANAGER BAR */
+        #manager-bar {
+            padding: 1rem 2.5rem;
+            display: flex;
+            gap: 1.5rem;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            align-items: flex-end;
+        }
+
+        .input-group { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; }
+        
+        input { 
+            background: #000; 
+            border: 1px solid var(--border); 
+            color: #fff; 
+            padding: 12px 16px; 
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            outline: none; 
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: var(--font);
+        }
+        
+        input:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+
+        #add-btn { 
+            background: var(--accent); 
+            color: #000; 
+            border: none; 
+            padding: 12px 2rem; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            transition: transform 0.1s;
+        }
+        #add-btn:active { transform: scale(0.98); }
+
+        /* INSTANCE LIST */
+        #instance-list { 
+            flex: 1; 
+            overflow-y: overlay; 
+            padding: 1.5rem 2.5rem; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+        }
+
+        /* CUSTOM SCROLLBAR */
+        #instance-list::-webkit-scrollbar { width: 4px; }
+        #instance-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .instance-row { 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            padding: 12px 20px; 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            border-radius: 8px; 
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .instance-row:hover { background: #0e0e16; border-color: rgba(0, 242, 255, 0.2); }
+
+        .status-indicator { display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #222; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .status-dot.active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .status-label { font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; }
+
+        .id-badge { color: var(--text); font-size: 0.75rem; min-width: 100px; font-weight: 500; opacity: 0.8; }
+        .last-signal { flex: 1; color: var(--text-dim); font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic; }
+
+        .controls { display: flex; align-items: center; gap: 12px; flex: 2; }
+        
+        .strike-input { flex: 1; background: #050508 !important; border-color: rgba(255,255,255,0.03); padding: 8px 12px; font-size: 0.7rem; }
+
+        .btn-action { 
+            border: 1px solid var(--border); 
+            background: none; 
+            color: var(--text); 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            font-size: 0.6rem; 
+            cursor: pointer; 
+            text-transform: uppercase;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-start { border-color: var(--success); color: var(--success); }
+        .btn-start:hover { background: var(--success); color: #000; box-shadow: 0 0 15px rgba(0, 255, 127, 0.3); }
+
+        .btn-terminate { border-color: var(--danger); color: var(--danger); opacity: 0.5; }
+        .btn-terminate:hover { background: var(--danger); color: #fff; opacity: 1; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .active-label { animation: pulse 2s infinite; }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Soberano <span style="font-weight: 300; opacity: 0.5;">Pure Console</span></h1>
+        <div id="count-box">ENGINES: <span id="count">0</span></div>
+    </header>
+
+    <div id="manager-bar">
+        <div class="input-group">
+            <label>Master Sync URL</label>
+            <input type="text" id="authUrl" placeholder="https://aistudio.google.com/...">
+        </div>
+        <button id="add-btn" onclick="addInstance()">Register Agent</button>
+    </div>
+
+    <div id="instance-list"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let total = 0;
+        const registry = {}; // { id: { authUrl, active } }
+
+        function addInstance() {
+            const auth = document.getElementById('authUrl').value;
+            if (!auth) return;
+            socket.emit('register', { authUrl: auth });
+            document.getElementById('authUrl').value = '';
+        }
+
+        function manualStart(id) {
+            const authUrl = registry[id].authUrl;
+            socket.emit('launch', { id, authUrl });
+            const row = document.querySelector(`.row[data-id="${id}"]`);
+            if (row) {
+                row.querySelector('.status-dot').classList.add('active');
+                row.querySelector('.status-label').innerText = 'ACTIVE';
+                row.querySelector('.status-label').classList.add('active-label');
+                row.querySelector('.btn-start').style.display = 'none';
+            }
+        }
+
+        socket.on('instance-ready', (data) => {
+            if (!registry[data.id]) {
+                registry[data.id] = { authUrl: data.authUrl, active: false };
+                createRow(data.id);
+                total++;
+                document.getElementById('count').innerText = total;
+            }
+        });
+
+        socket.on('signal', (data) => {
+            const row = document.querySelector(`.row[data-id="${data.id}"]`);
+            if (row) {
+                row.querySelector('.last-signal').innerText = data.msg.substring(0, 100);
+                // Auto-activate if receiving signals
+                row.querySelector('.status-dot').classList.add('active');
+                row.querySelector('.status-label').innerText = 'ACTIVE';
+                row.querySelector('.btn-start').style.display = 'none';
+            }
+        });
+
+        function createRow(id) {
+            const container = document.getElementById('instance-list');
+            const row = document.createElement('div');
+            row.className = 'instance-row row';
+            row.dataset.id = id;
+            row.innerHTML = `
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <div class="status-label">Standby</div>
+                </div>
+                <div class="id-badge">${id.substring(id.length - 8)}</div>
+                <div class="last-signal">Awaiting command...</div>
+                <div class="controls">
+                    <input type="text" class="strike-input" placeholder="DEEP STRIKE CODE..." onkeydown="if(event.key==='Enter') sendStrike('${id}', this)">
+                    <button class="btn-action btn-start" onclick="manualStart('${id}')">Start</button>
+                    <button class="btn-action btn-terminate" onclick="terminate('${id}')">Kill</button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function sendStrike(id, input) {
+            const cmd = input.value.trim();
+            if (cmd) { socket.emit('execute-command', { id, cmd }); input.value = ''; }
+        }
+
+        function terminate(id) {
+            socket.emit('terminate', id);
+            const row = document.querySelector(`.row[data-id="${id}"]`);
+            if (row) row.remove();
+            total--;
+            document.getElementById('count').innerText = total;
+            delete registry[id];
+        }
+    </script>
+</body>
+
+</html>
