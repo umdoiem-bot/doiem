@@ -68,60 +68,45 @@ app.get('/auth', (req, res) => {
     <button class="btn-nav" onclick="nav()">IR</button>
 </div>
 <div id="wrap">
-    <div>
-        <button id="start-btn" onclick="startAuth()">▶ INICIAR NAVEGADOR REMOTO</button>
-        <img id="screen" src="" alt="" style="display:none" />
+    <div style="text-align: center; margin-top: 50px;">
+        <button id="start-btn" onclick="startAuth()" style="padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #00ff95; color: black; border: none; border-radius: 4px; font-weight: bold;">
+            ▶ INICIAR CHROME (JANELA NATIVA DO WINDOWS)
+        </button>
+        <p style="margin-top:20px; color:#888;">Ao clicar, uma janela real do Chrome abrirá. Faça o login lá.<br/>Depois volte aqui e clique em Salvar Sessão.</p>
     </div>
 </div>
-<div class="toast" id="toast">✅ SESSÃO SALVA!</div>
+<div class="toast" id="toast">✅ SESSÃO (COOKIES) EXTRAÍDA COM SUCESSO! O CLUSTER ESTÁ ARMADO!</div>
 <div id="ctrl">
-    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO</button>
-    <button class="btn rel" onclick="nav()">🔄 RECARREGAR (F5)</button>
+    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO DA JANELA</button>
 </div>
-<div id="log"><p>// AUTH LOG</p><div id="lb">Pronto para iniciar...</div></div>
+<div id="log"><p>// AUTH LOG</p><div id="lb">Operação exclusiva para ambiente Windows.</div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const sock = io('/auth');
-const scr = document.getElementById('screen');
 const lb = document.getElementById('lb');
 const st = document.getElementById('st');
 const ip = document.getElementById('ip');
-const urlInput = document.getElementById('url-input');
 
-sock.on('connect', () => { st.textContent='ONLINE'; st.style.color='#00ff95'; });
+sock.on('connect', () => { st.textContent='ONLINE (WINDOWS NATIVE)'; st.style.color='#00ff95'; });
 sock.on('ip', v => ip.textContent = v);
 sock.on('log', m => lb.textContent = '> ' + m);
-sock.on('frame', d => {
-    scr.style.display='block';
-    document.getElementById('start-btn').style.display='none';
-    scr.src='data:image/jpeg;base64,'+d.img;
-    // Só atualiza o input se o usuário não estiver digitando nele
-    if (document.activeElement !== urlInput && d.url) {
-        urlInput.value = d.url || '';
-    }
-});
 
 sock.on('saved', () => {
     const t=document.getElementById('toast');
     t.style.display='block';
-    setTimeout(()=>t.style.display='none',3000);
+    setTimeout(()=>t.style.display='none',5000);
 });
 
-scr.addEventListener('click', e => {
-    const r=scr.getBoundingClientRect();
-    sock.emit('click',{x:Math.round((e.clientX-r.left)*(1280/r.width)),y:Math.round((e.clientY-r.top)*(800/r.height))});
-});
-document.addEventListener('keydown', e => {
-    if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
-    sock.emit('key',{key:e.key});
-});
-
-function startAuth() { sock.emit('start'); lb.textContent='Iniciando navegador...'; }
+function startAuth() { 
+    sock.emit('start'); 
+    lb.textContent='Abrindo Chrome no Windows...'; 
+}
 function save() { sock.emit('save'); }
 function nav() { 
-    const target = urlInput.value.startsWith('http') ? urlInput.value : 'https://' + urlInput.value;
+    const urlInput = document.getElementById('url-input').value;
+    const target = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
     sock.emit('goto', target); 
-    lb.textContent='Navegando: ' + target;
+    lb.textContent='Enviando comando de navegação: ' + target;
 }
 <\/script>
 </body></html>`);
@@ -251,12 +236,14 @@ async function launchAuthBrowser() {
     
     let chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     if (!fs.existsSync(chromePath)) {
-        const cloudPaths = ['/usr/bin/google-chrome-stable', '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'];
-        const systemChrome = cloudPaths.find(p => fs.existsSync(p));
-        if (systemChrome) {
-            chromePath = systemChrome;
+        // Fallback para Program Files (x86) comuns em Windows
+        const altPath = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
+        if (fs.existsSync(altPath)) {
+            chromePath = altPath;
         } else {
-            try { chromePath = require('puppeteer').executablePath(); } catch(e) {}
+            try { chromePath = require('puppeteer').executablePath(); } catch(e) {
+                throw new Error('Chrome não localizado no Windows. Instale o Google Chrome ou defina CHROME_PATH.');
+            }
         }
     }
 
@@ -265,66 +252,41 @@ async function launchAuthBrowser() {
     
     authBrowser = await puppeteerAuth.launch({
         executablePath: chromePath, 
-        headless: 'new',
+        headless: false, // Abre a JANELA REAL DO CHROME NO WINDOWS! Vingança total contra Google.
         userDataDir: PROFILE_DIR,
-        ignoreDefaultArgs: ['--enable-automation'], // Remove a bandeira principal de detecção!
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-infobars',
-            '--window-position=0,0',
             '--window-size=1280,800',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--ignore-certificate-errors', 
-            '--use-gl=angle',
-            '--disable-blink-features=AutomationControlled'
+            '--disable-infobars',
+            '--window-position=0,0'
         ]
     });
     authPage = await authBrowser.newPage();
-    // Injetando DNA Humano Absoluto (User-Agent real sem a tag "Headless")
-    await authPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
     await authPage.setViewport({ width: 1280, height: 800 });
     authClient = await authPage.createCDPSession();
     await authClient.send('Network.enable');
     
-    // RESTAURANDO A PROJEÇÃO DO SCREENCAST
-    await authClient.send('Page.startScreencast', { format:'jpeg', quality:70, maxWidth:1280, maxHeight:800 });
-    
     await authPage.goto('https://accounts.google.com/signin', { waitUntil: 'networkidle2', timeout: 0 });
-    logSistema('Auth Browser iniciado → Google Login (Screencast Restabelecido)');
+    logSistema('Chrome Aberto no Windows! Faça o login na interface e depois salve a Sessão no Dashboard.');
 }
 
 authNS.on('connection', async (socket) => {
-    // Detecta IP externo do servidor
     try {
         const resp = await fetch('https://api.ipify.org?format=json');
         const data = await resp.json();
         socket.emit('ip', data.ip);
     } catch(e) { socket.emit('ip','n/a'); }
 
-    if (authClient) {
-        authClient.on('Page.screencastFrame', async ({ data, sessionId }) => {
-            socket.emit('frame', { img: data, url: authPage ? authPage.url() : '' });
-            await authClient.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
-        });
-    }
-
-
     socket.on('start', async () => {
         await launchAuthBrowser().catch(e => socket.emit('log', 'Erro: ' + e.message));
-        socket.emit('log', 'Navegador remoto iniciado. Faça o login na tela acima.');
-        if (authClient) {
-            authClient.on('Page.screencastFrame', async ({ data, sessionId }) => {
-                socket.emit('frame', { img: data, url: authPage ? authPage.url() : '' });
-                await authClient.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
-            });
-        }
+        socket.emit('log', 'Navegador aberto! Verifique sua barra de tarefas/tela.');
     });
 
-    socket.on('click', async ({ x, y }) => { if (authPage) await authPage.mouse.click(x, y); });
-    socket.on('key', async ({ key }) => { if (authPage) await authPage.keyboard.press(key).catch(() => {}); });
-    socket.on('reload', async () => { if (authPage) { await authPage.reload({ waitUntil: 'networkidle2' }); socket.emit('log','Recarregado.'); } });
+    socket.on('reload', async () => { 
+        if (authPage) { 
+            await authPage.reload({ waitUntil: 'networkidle2' }).catch(() => {}); 
+            socket.emit('log','Recarregado.'); 
+        } 
+    });
 
     socket.on('goto', async (url) => {
         if (authPage) {
