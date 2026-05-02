@@ -1,0 +1,8 @@
+run = "bash start.sh"
+
+[nix]
+channel = "stable-23_05"
+
+[env]
+# O Chromium fica disponível globalmente
+PUPPETEER_EXECUTABLE_PATH = "chromium"
