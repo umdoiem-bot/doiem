@@ -247,24 +247,36 @@ const authNS = io.of('/auth');
 
 async function launchAuthBrowser() {
     if (authBrowser) return;
+    
     let chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     if (!fs.existsSync(chromePath)) {
-        try { chromePath = require('child_process').execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo ""', {encoding:'utf8'}).trim() || chromePath; } catch(e) {}
+        const cloudPaths = ['/usr/bin/google-chrome-stable', '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'];
+        const systemChrome = cloudPaths.find(p => fs.existsSync(p));
+        if (systemChrome) {
+            chromePath = systemChrome;
+        } else {
+            try { chromePath = require('puppeteer').executablePath(); } catch(e) {}
+        }
     }
+
     const PROFILE_DIR = path.join(ROOT_DIR, 'GHOST_PROFILE');
     if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
+    
     authBrowser = await puppeteerAuth.launch({
-        executablePath: chromePath, headless: true,
+        executablePath: chromePath, 
+        headless: 'new', // Necessário para renderização headless no linux
         userDataDir: PROFILE_DIR,
-        args: ['--no-sandbox','--disable-setuid-sandbox','--window-size=1280,800','--disable-dev-shm-usage']
+        args: ['--no-sandbox','--disable-setuid-sandbox','--window-size=1280,800','--disable-dev-shm-usage','--disable-gpu','--ignore-certificate-errors', '--use-gl=angle']
     });
     authPage = await authBrowser.newPage();
     await authPage.setViewport({ width: 1280, height: 800 });
     authClient = await authPage.createCDPSession();
     await authClient.send('Network.enable');
     await authClient.send('Page.startScreencast', { format:'jpeg', quality:70, maxWidth:1280, maxHeight:800 });
+    
+    // Força o envio de eventos screencast com alta frequência
     await authPage.goto('https://accounts.google.com/signin', { waitUntil: 'networkidle2', timeout: 0 });
-    logSistema('Auth Browser iniciado → Google Login');
+    logSistema('Auth Browser iniciado → Google Login (Motor Real Conectado)');
 }
 
 authNS.on('connection', async (socket) => {
