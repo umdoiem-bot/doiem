@@ -63,6 +63,16 @@ async function initBrowser() {
             '--no-first-run',
             '--no-zygote',
             '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-breakpad',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-extensions',
+            '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+            '--disable-ipc-flooding-protection',
+            '--disable-renderer-backgrounding',
+            '--enable-features=NetworkService,NetworkServiceInProcess',
+            '--force-color-profile=srgb',
+            '--mute-audio',
             '--disable-blink-features=AutomationControlled',
             '--disable-infobars',
             '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -85,6 +95,25 @@ async function launchStrike(id, authUrl) {
 
         const page = await b.newPage();
         activeTabs[id] = page;
+
+        // ⚡ OTIMIZAÇÃO NOYRON: BLOQUEIO DE CARGA PESADA
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            const resourceType = req.resourceType();
+            if (['image', 'font', 'media', 'stylesheet'].includes(resourceType)) {
+                // Mantém stylesheets apenas se forem vitais (algumas UIs quebram sem CSS), 
+                // mas para "Pure Console", podemos bloquear quase tudo.
+                if (resourceType === 'stylesheet' && !req.url().includes('console')) {
+                    req.abort();
+                } else if (resourceType !== 'stylesheet') {
+                    req.abort();
+                } else {
+                    req.continue();
+                }
+            } else {
+                req.continue();
+            }
+        });
 
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -236,7 +265,7 @@ process.stdin.on('data', async (data) => {
             const page = activeTabs[packet.id];
             if (page) {
                 try {
-                    const base64 = await page.screenshot({ encoding: 'base64', type: 'webp', quality: 50 });
+                    const base64 = await page.screenshot({ encoding: 'base64', type: 'webp', quality: 20 });
                     console.log(JSON.stringify({ type: 'PREVIEW_DATA', id: packet.id, image: base64 }));
                 } catch (err) {
                     log(`[${packet.id}] Falha ao capturar preview: ${err.message}`, 'ERR');
