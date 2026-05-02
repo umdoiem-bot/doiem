@@ -27,7 +27,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ── ROTA DO AUTENTICADOR DE AMBIENTE (Browser-in-Browser) ───────────────────
 app.get('/auth', (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="pt-BR">
@@ -40,8 +39,10 @@ app.get('/auth', (req, res) => {
         header{background:linear-gradient(90deg,#0d1117,#1a1f2e);border-bottom:1px solid #00ff9530;padding:14px 24px;display:flex;align-items:center;gap:12px}
         header h1{font-size:.9rem;color:#00ff95;letter-spacing:4px}
         .badge{background:#ff4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:.65rem}
-        #bar{background:#111;border-bottom:1px solid #1e2430;padding:6px 24px;font-size:.72rem;color:#666;display:flex;gap:20px}
+        #bar{background:#111;border-bottom:1px solid #1e2430;padding:6px 24px;font-size:.72rem;color:#666;display:flex;align-items:center;gap:15px}
         #bar span{color:#00ff95}
+        #url-input{background:#050505;border:1px solid #1e2430;color:#00ff95;padding:4px 8px;width:500px;font-family:monospace;font-size:.72rem;outline:none}
+        .btn-nav{background:#1e2430;color:#00ff95;border:1px solid #00ff9540;padding:4px 10px;cursor:pointer;font-size:.65rem}
         #wrap{display:flex;justify-content:center;padding:16px;background:#070b12;min-height:calc(100vh - 100px)}
         #screen{display:block;max-width:100%;border:1px solid #00ff9540;border-radius:4px;cursor:crosshair;background:#000;box-shadow:0 0 30px #00ff9515}
         #ctrl{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:99}
@@ -60,7 +61,12 @@ app.get('/auth', (req, res) => {
     <h1>🛡️ SOBERANO // AUTH ENGINE</h1>
     <div class="badge">IP: SERVIDOR</div>
 </header>
-<div id="bar">STATUS: <span id="st">AGUARDANDO</span> &nbsp;|&nbsp; IP: <span id="ip">...</span> &nbsp;|&nbsp; URL: <span id="url">—</span></div>
+<div id="bar">
+    STATUS: <span id="st">AGUARDANDO</span> &nbsp;|&nbsp; 
+    IP: <span id="ip">...</span> &nbsp;|&nbsp; 
+    URL: <input type="text" id="url-input" placeholder="https://..." onkeydown="if(event.key==='Enter') nav()">
+    <button class="btn-nav" onclick="nav()">IR</button>
+</div>
 <div id="wrap">
     <div>
         <button id="start-btn" onclick="startAuth()">▶ INICIAR NAVEGADOR REMOTO</button>
@@ -70,7 +76,7 @@ app.get('/auth', (req, res) => {
 <div class="toast" id="toast">✅ SESSÃO SALVA!</div>
 <div id="ctrl">
     <button class="btn save" onclick="save()">💾 SALVAR SESSÃO</button>
-    <button class="btn rel" onclick="rel()">🔄 RECARREGAR</button>
+    <button class="btn rel" onclick="nav()">🔄 RECARREGAR (F5)</button>
 </div>
 <div id="log"><p>// AUTH LOG</p><div id="lb">Pronto para iniciar...</div></div>
 <script src="/socket.io/socket.io.js"></script>
@@ -80,7 +86,7 @@ const scr = document.getElementById('screen');
 const lb = document.getElementById('lb');
 const st = document.getElementById('st');
 const ip = document.getElementById('ip');
-const urlEl = document.getElementById('url');
+const urlInput = document.getElementById('url-input');
 
 sock.on('connect', () => { st.textContent='ONLINE'; st.style.color='#00ff95'; });
 sock.on('ip', v => ip.textContent = v);
@@ -89,7 +95,10 @@ sock.on('frame', d => {
     scr.style.display='block';
     document.getElementById('start-btn').style.display='none';
     scr.src='data:image/jpeg;base64,'+d.img;
-    urlEl.textContent=d.url||'—';
+    // Só atualiza o input se o usuário não estiver digitando nele
+    if (document.activeElement !== urlInput) {
+        urlInput.value = d.url || '';
+    }
 });
 sock.on('saved', () => {
     const t=document.getElementById('toast');
@@ -107,6 +116,15 @@ document.addEventListener('keydown', e => {
 });
 
 function startAuth() { sock.emit('start'); lb.textContent='Iniciando navegador...'; }
+function save() { sock.emit('save'); }
+function nav() { 
+    const target = urlInput.value.startsWith('http') ? urlInput.value : 'https://' + urlInput.value;
+    sock.emit('goto', target); 
+    lb.textContent='Navegando para: ' + target;
+}
+<\/script>
+</body></html>`);
+});extContent='Iniciando navegador...'; }
 function save() { sock.emit('save'); }
 function rel() { sock.emit('reload'); }
 <\/script>
@@ -283,6 +301,15 @@ authNS.on('connection', async (socket) => {
     socket.on('click', async ({ x, y }) => { if (authPage) await authPage.mouse.click(x, y); });
     socket.on('key', async ({ key }) => { if (authPage) await authPage.keyboard.press(key).catch(() => {}); });
     socket.on('reload', async () => { if (authPage) { await authPage.reload({ waitUntil: 'networkidle2' }); socket.emit('log','Recarregado.'); } });
+
+    socket.on('goto', async (url) => {
+        if (authPage) {
+            try {
+                await authPage.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+                socket.emit('log', 'Navegação concluída.');
+            } catch(e) { socket.emit('log', 'Erro ao carregar: ' + e.message); }
+        }
+    });
 
     socket.on('save', async () => {
         if (!authClient) return socket.emit('log', 'Navegador não iniciado.');
