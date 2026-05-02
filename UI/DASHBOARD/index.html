@@ -170,24 +170,6 @@
         }
         .active-label { animation: pulse 2s infinite; }
 
-        /* PREVIEW MODAL */
-        #preview-modal {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center;
-            flex-direction: column;
-        }
-        #preview-modal img {
-            max-width: 90vw; max-height: 85vh; border: 2px solid var(--accent);
-            border-radius: 8px; box-shadow: 0 0 30px var(--accent-glow);
-        }
-        .close-btn {
-            margin-top: 15px; background: var(--surface); color: var(--text);
-            border: 1px solid var(--border); padding: 8px 20px; border-radius: 4px;
-            cursor: pointer; text-transform: uppercase; font-family: var(--font);
-        }
-        .close-btn:hover { background: var(--accent); color: #000; }
-        .btn-preview { border-color: var(--accent); color: var(--accent); }
-        .btn-preview:hover { background: var(--accent); color: #000; }
     </style>
 </head>
 
@@ -206,11 +188,6 @@
     </div>
 
     <div id="instance-list"></div>
-
-    <div id="preview-modal">
-        <img id="preview-img" src="" alt="Live Preview">
-        <button class="close-btn" onclick="closePreview()">Fechar Analisador</button>
-    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -264,13 +241,9 @@
             modal.style.display = 'flex';
         });
 
-        function requestPreview(id) {
-            socket.emit('request-preview', id);
-        }
-
-        function closePreview() {
-            document.getElementById('preview-modal').style.display = 'none';
-            document.getElementById('preview-img').src = '';
+        function openLink(id) {
+            const url = registry[id].authUrl;
+            if (url) window.open(url, '_blank');
         }
 
         function createRow(id) {
@@ -288,7 +261,7 @@
                 <div class="controls">
                     <input type="text" class="strike-input" placeholder="DEEP STRIKE CODE..." onkeydown="if(event.key==='Enter') sendStrike('${id}', this)">
                     <button class="btn-action btn-start" onclick="manualStart('${id}')">Start</button>
-                    <button class="btn-action btn-preview" onclick="requestPreview('${id}')">👁️</button>
+                    <button class="btn-action btn-preview" style="border-color: #f1c40f; color: #f1c40f;" onclick="openLink('${id}')" title="Abrir Link Real">🔗</button>
                     <button class="btn-action btn-terminate" onclick="terminate('${id}')">Kill</button>
                 </div>
             `;
