@@ -95,10 +95,10 @@ function autoLinkDevTools() {
     const host = window.location.host;
     let url = '';
     if (host.includes('localhost') || host.includes('127.0.0.1')) {
-        url = 'http://localhost:9222';
+        url = 'http://localhost:9222/json';
     } else {
         const newHost = host.replace('-3000', '-9222');
-        url = window.location.protocol + '//' + newHost;
+        url = window.location.protocol + '//' + newHost + '/json';
     }
     window.open(url, '_blank');
 }
