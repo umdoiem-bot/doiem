@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Dashboard de Comando Sentinela",
   "main": "server.js",
+  "scripts": {
+    "start": "node UI/DASHBOARD/server.js",
+    "auth": "node auth_env.js"
+  },
   "dependencies": {
     "express": "^4.18.2",
     "express-http-proxy": "^2.1.2",
