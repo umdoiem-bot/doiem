@@ -33,7 +33,11 @@ const PROFILE_DIR = path.join(__dirname, 'GHOST_PROFILE');
             '--start-maximized',
             '--no-sandbox',
             '--disable-setuid-sandbox'
-        ]
+        ],
+        env: {
+            ...process.env,
+            DISPLAY: process.env.DISPLAY || ':0'
+        }
     });
 
     const page = await browser.newPage();
