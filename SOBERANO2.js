@@ -10,7 +10,12 @@ puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const path = require('path');
 
-const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+// DESCOBERTA DINÂMICA DO CHROME (Cross-Platform)
+let CHROME_PATH = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+if (!fs.existsSync(CHROME_PATH)) {
+    const cloudPaths = ['/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+    CHROME_PATH = cloudPaths.find(p => fs.existsSync(p)) || CHROME_PATH;
+}
 const PROFILE_DIR = path.join(__dirname, 'GHOST_PROFILE');
 
 let browser = null;
