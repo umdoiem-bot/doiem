@@ -68,15 +68,28 @@ app.get('/auth', (req, res) => {
     <button class="btn-nav" onclick="nav()">IR</button>
 </div>
 <div id="wrap">
-    <div>
-        <button id="start-btn" onclick="startAuth()">▶ INICIAR NAVEGADOR REMOTO</button>
-        <img id="screen" src="" alt="" style="display:none" />
+    <div style="text-align: center; max-width: 800px; margin-top: 50px;">
+        <button id="start-btn" onclick="startAuth()">▶ IGNITAR MOTOR FANTASMA (HEADLESS)</button>
+        
+        <div id="devtools-instructions" style="display: none; margin-top: 30px; background: #0a0e14; border: 1px solid #1e2430; padding: 25px; border-radius: 6px; text-align: left;">
+            <h2 style="color: #00ff95; font-size: 1rem; margin-bottom: 15px;">🔌 PONTE DEVTOOLS NATIVA ATIVADA</h2>
+            <p style="color: #888; font-size: 0.8rem; margin-bottom: 20px; line-height: 1.5;">O Motor Headless está rodando. A projeção via proxy reverso foi desativada pois bloqueia mecanismos anti-fraude do Google e rouba os cookies do Worker.</p>
+            
+            <p style="color: #ccc; font-size: 0.8rem; font-weight: bold;">[ PARA ACESSAR A TELA REAL COM 100% DE ALTA FIDELIDADE: ]</p>
+            <ol style="color: #00ff95; font-size: 0.75rem; margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                <li>Vá até a aba "Ports" (Portas) no painel inferior do seu Github Codespace.</li>
+                <li>Haverá uma nova porta rodando: <strong>9222</strong>.</li>
+                <li>Clique no ícone de "Globo" / "Abrir no Navegador" ao lado da porta 9222.</li>
+                <li>Uma página do <strong>Chrome Inspect</strong> será aberta. Escaneie e clique no alvo disponível!</li>
+            </ol>
+            
+            <p style="color: #ff4444; font-size: 0.7rem; margin-top: 20px; font-style: italic;">⚠️ Após fazer o login nativamente pela Ponte DevTools, volte aqui e clique em SALVAR SESSÃO.</p>
+        </div>
     </div>
 </div>
 <div class="toast" id="toast">✅ SESSÃO SALVA!</div>
 <div id="ctrl">
-    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO</button>
-    <button class="btn rel" onclick="nav()">🔄 RECARREGAR (F5)</button>
+    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO NO WORKER</button>
 </div>
 <div id="log"><p>// AUTH LOG</p><div id="lb">Pronto para iniciar...</div></div>
 <script src="/socket.io/socket.io.js"></script>
@@ -92,35 +105,29 @@ sock.on('connect', () => { st.textContent='ONLINE'; st.style.color='#00ff95'; })
 sock.on('ip', v => ip.textContent = v);
 sock.on('log', m => lb.textContent = '> ' + m);
 sock.on('frame', d => {
-    scr.style.display='block';
-    document.getElementById('start-btn').style.display='none';
-    scr.src='data:image/jpeg;base64,'+d.img;
-    // Só atualiza o input se o usuário não estiver digitando nele
-    if (document.activeElement !== urlInput) {
+    // Mantido apenas para feedback de URL, se necessário
+    if (document.activeElement !== urlInput && d.url) {
         urlInput.value = d.url || '';
     }
 });
+
 sock.on('saved', () => {
     const t=document.getElementById('toast');
     t.style.display='block';
     setTimeout(()=>t.style.display='none',3000);
 });
 
-scr.addEventListener('click', e => {
-    const r=scr.getBoundingClientRect();
-    sock.emit('click',{x:Math.round((e.clientX-r.left)*(1280/r.width)),y:Math.round((e.clientY-r.top)*(800/r.height))});
-});
-document.addEventListener('keydown', e => {
-    if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
-    sock.emit('key',{key:e.key});
-});
-
-function startAuth() { sock.emit('start'); lb.textContent='Iniciando navegador...'; }
+function startAuth() { 
+    sock.emit('start'); 
+    lb.textContent='Iniciando Motor na Porta 9222...'; 
+    document.getElementById('start-btn').style.display='none';
+    document.getElementById('devtools-instructions').style.display='block';
+}
 function save() { sock.emit('save'); }
 function nav() { 
     const target = urlInput.value.startsWith('http') ? urlInput.value : 'https://' + urlInput.value;
     sock.emit('goto', target); 
-    lb.textContent='Navegando para: ' + target;
+    lb.textContent='Navegando: ' + target;
 }
 <\/script>
 </body></html>`);
@@ -264,15 +271,26 @@ async function launchAuthBrowser() {
     
     authBrowser = await puppeteerAuth.launch({
         executablePath: chromePath, 
-        headless: 'new', // Necessário para renderização headless no linux
+        headless: 'new',
         userDataDir: PROFILE_DIR,
-        args: ['--no-sandbox','--disable-setuid-sandbox','--window-size=1280,800','--disable-dev-shm-usage','--disable-gpu','--ignore-certificate-errors', '--use-gl=angle']
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--window-size=1280,800',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--ignore-certificate-errors', 
+            '--use-gl=angle',
+            '--remote-debugging-port=9222', 
+            '--remote-debugging-address=0.0.0.0'
+        ]
     });
     authPage = await authBrowser.newPage();
     await authPage.setViewport({ width: 1280, height: 800 });
     authClient = await authPage.createCDPSession();
     await authClient.send('Network.enable');
-    await authClient.send('Page.startScreencast', { format:'jpeg', quality:70, maxWidth:1280, maxHeight:800 });
+    
+    // Substituindo o Screencast pela Ponte Nativa de Alta Fidelidade
     
     // Força o envio de eventos screencast com alta frequência
     await authPage.goto('https://accounts.google.com/signin', { waitUntil: 'networkidle2', timeout: 0 });
