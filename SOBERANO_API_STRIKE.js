@@ -31,6 +31,7 @@ async function armarStrike() {
 
     } catch (error) {
         console.error('\n[-] ERRO FATAL: Falha ao ler a base do gcloud.');
+        console.error('[-] DETALHE DO ERRO:', error.message);
         console.error('[-] Você precisa gerar as credenciais nativas da máquina rodando esse comando no terminal:');
         console.error('    👉 gcloud auth application-default login --no-browser\n');
         process.exit(1);
