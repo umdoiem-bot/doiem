@@ -10,11 +10,27 @@ puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const path = require('path');
 
-// DESCOBERTA DINÂMICA DO CHROME (Cross-Platform)
+// DESCOBERTA DINÂMICA DO CHROME (Cross-Platform + Fallback Embutido)
 let CHROME_PATH = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 if (!fs.existsSync(CHROME_PATH)) {
-    const cloudPaths = ['/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-    CHROME_PATH = cloudPaths.find(p => fs.existsSync(p)) || CHROME_PATH;
+    // Tenta localizar Chrome/Chromium no sistema Linux (Codespace, VPS)
+    const cloudPaths = [
+        '/usr/bin/google-chrome-stable', '/usr/bin/google-chrome',
+        '/usr/bin/chromium', '/usr/bin/chromium-browser'
+    ];
+    const systemChrome = cloudPaths.find(p => fs.existsSync(p));
+    if (systemChrome) {
+        CHROME_PATH = systemChrome;
+    } else {
+        // Fallback final: usa o Chromium embutido do proprio puppeteer (npm install puppeteer)
+        try {
+            const puppeteerFull = require('puppeteer');
+            CHROME_PATH = puppeteerFull.executablePath();
+            log(`Usando Chromium embutido do Puppeteer: ${CHROME_PATH}`, 'SYSTEM');
+        } catch(e) {
+            log('Chrome nao encontrado no sistema e puppeteer nao instalado!', 'ERR');
+        }
+    }
 }
 const PROFILE_DIR = path.join(__dirname, 'GHOST_PROFILE');
 
