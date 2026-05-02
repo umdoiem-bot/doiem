@@ -68,40 +68,19 @@ app.get('/auth', (req, res) => {
     <button class="btn-nav" onclick="nav()">IR</button>
 </div>
 <div id="wrap">
-    <div style="text-align: center; max-width: 800px; margin-top: 50px;">
-        <button id="start-btn" onclick="startAuth()">▶ IGNITAR MOTOR FANTASMA (HEADLESS)</button>
-        
-        <div id="devtools-instructions" style="display: none; margin-top: 30px; background: #0a0e14; border: 1px solid #1e2430; padding: 25px; border-radius: 6px; text-align: center;">
-            <h2 style="color: #00ff95; font-size: 1rem; margin-bottom: 15px;">🔌 PONTE DEVTOOLS ATIVADA (PORTA 9222)</h2>
-            <p style="color: #888; font-size: 0.8rem; margin-bottom: 20px; line-height: 1.5;">O Motor Headless já está rodando nos 4 Núcleos do Servidor. <br/>Clique no botão abaixo para projetar a tela em Alta Fidelidade (Auto-Redirecionamento):</p>
-            
-            <button onclick="autoLinkDevTools()" style="background:var(--success, #00ff95); color: #000; border: none; padding: 15px 30px; border-radius: 4px; font-weight: 800; font-family: monospace; font-size: 0.9rem; cursor: pointer; margin-bottom: 15px;">
-                🚀 ABRIR TELA DE ALTA FIDELIDADE
-            </button>
-            <p style="color: #666; font-size:0.6rem;">*(Permita Pop-ups se o navegador bloquear)*</p>
-
-            <p style="color: #ff4444; font-size: 0.7rem; margin-top: 20px; font-style: italic;">⚠️ Após fazer o Login no Google pela Aba que abrir, feche-a, volte aqui e clique em "SALVAR SESSÃO".</p>
-        </div>
+    <div>
+        <button id="start-btn" onclick="startAuth()">▶ INICIAR NAVEGADOR REMOTO</button>
+        <img id="screen" src="" alt="" style="display:none" />
     </div>
 </div>
 <div class="toast" id="toast">✅ SESSÃO SALVA!</div>
 <div id="ctrl">
-    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO NO WORKER</button>
+    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO</button>
+    <button class="btn rel" onclick="nav()">🔄 RECARREGAR (F5)</button>
 </div>
 <div id="log"><p>// AUTH LOG</p><div id="lb">Pronto para iniciar...</div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-function autoLinkDevTools() {
-    const host = window.location.host;
-    let url = '';
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-        url = 'http://localhost:9222/json';
-    } else {
-        const newHost = host.replace('-3000', '-9222');
-        url = window.location.protocol + '//' + newHost + '/json';
-    }
-    window.open(url, '_blank');
-}
 const sock = io('/auth');
 const scr = document.getElementById('screen');
 const lb = document.getElementById('lb');
@@ -113,7 +92,10 @@ sock.on('connect', () => { st.textContent='ONLINE'; st.style.color='#00ff95'; })
 sock.on('ip', v => ip.textContent = v);
 sock.on('log', m => lb.textContent = '> ' + m);
 sock.on('frame', d => {
-    // Mantido apenas para feedback de URL, se necessário
+    scr.style.display='block';
+    document.getElementById('start-btn').style.display='none';
+    scr.src='data:image/jpeg;base64,'+d.img;
+    // Só atualiza o input se o usuário não estiver digitando nele
     if (document.activeElement !== urlInput && d.url) {
         urlInput.value = d.url || '';
     }
@@ -125,12 +107,16 @@ sock.on('saved', () => {
     setTimeout(()=>t.style.display='none',3000);
 });
 
-function startAuth() { 
-    sock.emit('start'); 
-    lb.textContent='Iniciando Motor na Porta 9222...'; 
-    document.getElementById('start-btn').style.display='none';
-    document.getElementById('devtools-instructions').style.display='block';
-}
+scr.addEventListener('click', e => {
+    const r=scr.getBoundingClientRect();
+    sock.emit('click',{x:Math.round((e.clientX-r.left)*(1280/r.width)),y:Math.round((e.clientY-r.top)*(800/r.height))});
+});
+document.addEventListener('keydown', e => {
+    if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+    sock.emit('key',{key:e.key});
+});
+
+function startAuth() { sock.emit('start'); lb.textContent='Iniciando navegador...'; }
 function save() { sock.emit('save'); }
 function nav() { 
     const target = urlInput.value.startsWith('http') ? urlInput.value : 'https://' + urlInput.value;
@@ -279,7 +265,7 @@ async function launchAuthBrowser() {
     
     authBrowser = await puppeteerAuth.launch({
         executablePath: chromePath, 
-        headless: 'new',
+        headless: 'new', // Mantendo o fix de renderização que salvou a GPU!
         userDataDir: PROFILE_DIR,
         args: [
             '--no-sandbox',
@@ -288,9 +274,7 @@ async function launchAuthBrowser() {
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--ignore-certificate-errors', 
-            '--use-gl=angle',
-            '--remote-debugging-port=9222', 
-            '--remote-debugging-address=0.0.0.0'
+            '--use-gl=angle'
         ]
     });
     authPage = await authBrowser.newPage();
@@ -298,11 +282,11 @@ async function launchAuthBrowser() {
     authClient = await authPage.createCDPSession();
     await authClient.send('Network.enable');
     
-    // Substituindo o Screencast pela Ponte Nativa de Alta Fidelidade
+    // RESTAURANDO A PROJEÇÃO DO SCREENCAST
+    await authClient.send('Page.startScreencast', { format:'jpeg', quality:70, maxWidth:1280, maxHeight:800 });
     
-    // Força o envio de eventos screencast com alta frequência
     await authPage.goto('https://accounts.google.com/signin', { waitUntil: 'networkidle2', timeout: 0 });
-    logSistema('Auth Browser iniciado → Google Login (Motor Real Conectado)');
+    logSistema('Auth Browser iniciado → Google Login (Screencast Restabelecido)');
 }
 
 authNS.on('connection', async (socket) => {
@@ -319,6 +303,7 @@ authNS.on('connection', async (socket) => {
             await authClient.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
         });
     }
+
 
     socket.on('start', async () => {
         await launchAuthBrowser().catch(e => socket.emit('log', 'Erro: ' + e.message));
