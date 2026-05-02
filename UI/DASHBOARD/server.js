@@ -124,11 +124,6 @@ function nav() {
 }
 <\/script>
 </body></html>`);
-});extContent='Iniciando navegador...'; }
-function save() { sock.emit('save'); }
-function rel() { sock.emit('reload'); }
-<\/script>
-</body></html>`);
 });
 
 // CLUSTER DE CONFIGURAÇÕES (Persistência)
