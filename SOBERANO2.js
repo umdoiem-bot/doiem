@@ -210,6 +210,10 @@ async function launchStrike(id, authUrl) {
 
     } catch (err) {
         log(`[${id}] Falha na Aba: ${err.message}`, 'ERR');
+        if (err.message.includes('Timeout') || err.message.includes('Navigation')) {
+            log(`[${id}] Rota Crítica obstruída (Timeout). Reiniciando tentativa em 5s...`, 'WARN');
+            setTimeout(() => launchStrike(id, authUrl), 5000);
+        }
     }
 }
 
