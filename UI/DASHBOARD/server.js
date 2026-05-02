@@ -71,19 +71,16 @@ app.get('/auth', (req, res) => {
     <div style="text-align: center; max-width: 800px; margin-top: 50px;">
         <button id="start-btn" onclick="startAuth()">▶ IGNITAR MOTOR FANTASMA (HEADLESS)</button>
         
-        <div id="devtools-instructions" style="display: none; margin-top: 30px; background: #0a0e14; border: 1px solid #1e2430; padding: 25px; border-radius: 6px; text-align: left;">
-            <h2 style="color: #00ff95; font-size: 1rem; margin-bottom: 15px;">🔌 PONTE DEVTOOLS NATIVA ATIVADA</h2>
-            <p style="color: #888; font-size: 0.8rem; margin-bottom: 20px; line-height: 1.5;">O Motor Headless está rodando. A projeção via proxy reverso foi desativada pois bloqueia mecanismos anti-fraude do Google e rouba os cookies do Worker.</p>
+        <div id="devtools-instructions" style="display: none; margin-top: 30px; background: #0a0e14; border: 1px solid #1e2430; padding: 25px; border-radius: 6px; text-align: center;">
+            <h2 style="color: #00ff95; font-size: 1rem; margin-bottom: 15px;">🔌 PONTE DEVTOOLS ATIVADA (PORTA 9222)</h2>
+            <p style="color: #888; font-size: 0.8rem; margin-bottom: 20px; line-height: 1.5;">O Motor Headless já está rodando nos 4 Núcleos do Servidor. <br/>Clique no botão abaixo para projetar a tela em Alta Fidelidade (Auto-Redirecionamento):</p>
             
-            <p style="color: #ccc; font-size: 0.8rem; font-weight: bold;">[ PARA ACESSAR A TELA REAL COM 100% DE ALTA FIDELIDADE: ]</p>
-            <ol style="color: #00ff95; font-size: 0.75rem; margin-left: 20px; margin-top: 10px; line-height: 1.8;">
-                <li>Vá até a aba "Ports" (Portas) no painel inferior do seu Github Codespace.</li>
-                <li>Haverá uma nova porta rodando: <strong>9222</strong>.</li>
-                <li>Clique no ícone de "Globo" / "Abrir no Navegador" ao lado da porta 9222.</li>
-                <li>Uma página do <strong>Chrome Inspect</strong> será aberta. Escaneie e clique no alvo disponível!</li>
-            </ol>
-            
-            <p style="color: #ff4444; font-size: 0.7rem; margin-top: 20px; font-style: italic;">⚠️ Após fazer o login nativamente pela Ponte DevTools, volte aqui e clique em SALVAR SESSÃO.</p>
+            <button onclick="autoLinkDevTools()" style="background:var(--success, #00ff95); color: #000; border: none; padding: 15px 30px; border-radius: 4px; font-weight: 800; font-family: monospace; font-size: 0.9rem; cursor: pointer; margin-bottom: 15px;">
+                🚀 ABRIR TELA DE ALTA FIDELIDADE
+            </button>
+            <p style="color: #666; font-size:0.6rem;">*(Permita Pop-ups se o navegador bloquear)*</p>
+
+            <p style="color: #ff4444; font-size: 0.7rem; margin-top: 20px; font-style: italic;">⚠️ Após fazer o Login no Google pela Aba que abrir, feche-a, volte aqui e clique em "SALVAR SESSÃO".</p>
         </div>
     </div>
 </div>
@@ -94,6 +91,17 @@ app.get('/auth', (req, res) => {
 <div id="log"><p>// AUTH LOG</p><div id="lb">Pronto para iniciar...</div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+function autoLinkDevTools() {
+    const host = window.location.host;
+    let url = '';
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        url = 'http://localhost:9222';
+    } else {
+        const newHost = host.replace('-3000', '-9222');
+        url = window.location.protocol + '//' + newHost;
+    }
+    window.open(url, '_blank');
+}
 const sock = io('/auth');
 const scr = document.getElementById('screen');
 const lb = document.getElementById('lb');
