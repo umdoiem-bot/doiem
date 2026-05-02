@@ -2,7 +2,11 @@
  * SOBERANO2.js — MOTOR MULTI-TAB v5.0
  * Gerencia múltiplas frentes de ataque em um único navegador Chrome.
  */
-const puppeteer = require('puppeteer-core');
+const { addExtra } = require('puppeteer-extra');
+const puppeteerCore = require('puppeteer-core');
+const puppeteer = addExtra(puppeteerCore);
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const path = require('path');
 
@@ -65,19 +69,22 @@ async function launchStrike(id, authUrl) {
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
         });
 
-        // INJEÇÃO DA SESSÃO PRINCIPAL (Mimetismo de Logon)
+        // INJEÇÃO DA SESSÃO PRINCIPAL via CDP (Batch)
         const cookiePath = path.join(__dirname, 'COOKIES.json');
         if (fs.existsSync(cookiePath)) {
             try {
                 let cookies = JSON.parse(fs.readFileSync(cookiePath));
-                // O protocolo Chrome recusa o sameSite se for null ou não restritivo.
                 cookies = cookies.map(c => {
                     if (c.sameSite === null || c.sameSite === 'no_restriction') delete c.sameSite;
                     if (c.storeId === null) delete c.storeId;
                     return c;
                 });
-                await page.setCookie(...cookies);
-                log(`[${id}] Cookies de sessão carregados e injetados.`, 'SYSTEM');
+                
+                const client = await page.createCDPSession();
+                await client.send('Network.enable');
+                await client.send('Network.setCookies', { cookies });
+                
+                log(`[${id}] Cookies de sessão carregados via CDP Stealth.`, 'SYSTEM');
             } catch (err) {
                 log(`[${id}] Falha ao analisar COOKIES.json: ${err.message}`, 'WARN');
             }
@@ -86,7 +93,13 @@ async function launchStrike(id, authUrl) {
         // Sincronia Determinística
         log(`[${id}] Sincronizando...`, 'SYSTEM');
         await page.goto(authUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-        log(`[${id}] Sincronizado. AGENTE SENTINEL ATIVADO.`, 'SUCCESS');
+        
+        const finalUrl = page.url();
+        if (finalUrl.includes('accounts.google.com') || finalUrl.includes('signin')) {
+            log(`[${id}] ⚠️ REDIRECIONADO PARA LOGIN. Sessão/IP revogados pela Google.`, 'WARN');
+        } else {
+            log(`[${id}] Sincronizado. AGENTE SENTINEL ATIVADO.`, 'SUCCESS');
+        }
 
         // JITTER: Atraso aleatório para desincronizar o cluster (Evita picos de CPU)
         const jitter = Math.floor(Math.random() * 3000);
