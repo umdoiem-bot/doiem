@@ -7,5 +7,6 @@
     pkgs.harfbuzz
     pkgs.fontconfig
     pkgs.glib
+    pkgs.wget
   ];
 }
