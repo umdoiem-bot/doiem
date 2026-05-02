@@ -96,20 +96,13 @@ async function launchStrike(id, authUrl) {
         const page = await b.newPage();
         activeTabs[id] = page;
 
-        // ⚡ OTIMIZAÇÃO NOYRON: BLOQUEIO DE CARGA PESADA
+        // ⚡ OTIMIZAÇÃO NOYRON: BLOQUEIO EQUILIBRADO (STABLE MODE)
         await page.setRequestInterception(true);
         page.on('request', (req) => {
             const resourceType = req.resourceType();
-            if (['image', 'font', 'media', 'stylesheet'].includes(resourceType)) {
-                // Mantém stylesheets apenas se forem vitais (algumas UIs quebram sem CSS), 
-                // mas para "Pure Console", podemos bloquear quase tudo.
-                if (resourceType === 'stylesheet' && !req.url().includes('console')) {
-                    req.abort();
-                } else if (resourceType !== 'stylesheet') {
-                    req.abort();
-                } else {
-                    req.continue();
-                }
+            // Bloqueamos apenas o que é visualmente pesado e não-estrutural
+            if (['image', 'media', 'font'].includes(resourceType)) {
+                req.abort();
             } else {
                 req.continue();
             }
@@ -263,12 +256,19 @@ process.stdin.on('data', async (data) => {
             delete activeTabs[packet.id];
         } else if (packet.type === 'PREVIEW') {
             const page = activeTabs[packet.id];
-            if (page) {
+            if (page && !page.isClosed()) {
                 try {
-                    const base64 = await page.screenshot({ encoding: 'base64', type: 'webp', quality: 20 });
+                    // Espera ociosa mínima para garantir que o buffer de imagem do Chrome esteja pronto
+                    const base64 = await page.screenshot({ 
+                        encoding: 'base64', 
+                        type: 'webp', 
+                        quality: 40 
+                    });
                     console.log(JSON.stringify({ type: 'PREVIEW_DATA', id: packet.id, image: base64 }));
                 } catch (err) {
-                    log(`[${packet.id}] Falha ao capturar preview: ${err.message}`, 'ERR');
+                    if (!err.message.includes('Target closed')) {
+                        log(`[${packet.id}] Falha ao capturar preview: ${err.message}`, 'ERR');
+                    }
                 }
             }
         }
