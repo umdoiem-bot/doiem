@@ -9,19 +9,25 @@ echo "[+] VERIFICANDO MOTOR DO NAVEGADOR..."
 CHROME_BIN=$(which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null || which chromium-browser 2>/dev/null || which chromium 2>/dev/null || echo "")
 
 if [ -z "$CHROME_BIN" ]; then
-    echo " -> [!] Chrome/Chromium não encontrado. Instalando via apt-get..."
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq chromium-browser 2>/dev/null || \
-    sudo apt-get install -y -qq chromium 2>/dev/null || \
-    { echo " -> [ERR] Falha na instalação. Tente: sudo apt-get install -y chromium-browser"; exit 1; }
-    CHROME_BIN=$(which chromium-browser 2>/dev/null || which chromium 2>/dev/null || echo "")
+    echo " -> [!] Navegador não encontrado. Instalando..."
+
+    # Tenta instalar chromium (Debian/Ubuntu novo)
+    sudo apt-get install -y chromium 2>/dev/null && CHROME_BIN=$(which chromium 2>/dev/null)
+
+    # Fallback: instala Google Chrome via .deb oficial
+    if [ -z "$CHROME_BIN" ]; then
+        echo " -> [*] Baixando Google Chrome diretamente do servidor oficial..."
+        wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb
+        sudo apt install -y /tmp/chrome.deb
+        CHROME_BIN=$(which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null || echo "")
+    fi
 fi
 
 if [ -n "$CHROME_BIN" ]; then
     echo " -> [OK] Motor localizado: $CHROME_BIN"
     export CHROME_PATH="$CHROME_BIN"
 else
-    echo " -> [ERR] Navegador ainda não encontrado após instalação!"
+    echo " -> [ERR] Falha ao instalar o navegador. Verifique a conexão ou permissões sudo."
     exit 1
 fi
 
