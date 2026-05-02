@@ -265,19 +265,25 @@ async function launchAuthBrowser() {
     
     authBrowser = await puppeteerAuth.launch({
         executablePath: chromePath, 
-        headless: 'new', // Mantendo o fix de renderização que salvou a GPU!
+        headless: 'new',
         userDataDir: PROFILE_DIR,
+        ignoreDefaultArgs: ['--enable-automation'], // Remove a bandeira principal de detecção!
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--window-position=0,0',
             '--window-size=1280,800',
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--ignore-certificate-errors', 
-            '--use-gl=angle'
+            '--use-gl=angle',
+            '--disable-blink-features=AutomationControlled'
         ]
     });
     authPage = await authBrowser.newPage();
+    // Injetando DNA Humano Absoluto (User-Agent real sem a tag "Headless")
+    await authPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
     await authPage.setViewport({ width: 1280, height: 800 });
     authClient = await authPage.createCDPSession();
     await authClient.send('Network.enable');
