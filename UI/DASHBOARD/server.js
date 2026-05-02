@@ -154,8 +154,8 @@ server.listen(PORT, () => {
     startMotor();
     console.log(`⚙️  SISTEMA EM STANDBY: Aguardando comandos do Cockpit...`);
     
-    // Abre a interface visual automaticamente no CHROME em modo Anônimo (Virgem)
-    exec(`start chrome --incognito "http://localhost:${PORT}"`, (err) => {
+    // Abre a interface visual automaticamente no CHROME nativo
+    exec(`start chrome "http://localhost:${PORT}"`, (err) => {
         if (err) {
             // Fallback caso chrome não esteja no PATH
             exec(`start "" "http://localhost:${PORT}"`);
