@@ -1,42 +1,22 @@
 [
   {
-    "id": "10",
-    "authUrl": "https://aistudio.google.com/u/0/apps/e8b25f67-909e-4ba9-8b3a-e00d83089eae?showAssistant=true&showPreview=true"
-  },
-  {
     "id": "01",
     "authUrl": "https://aistudio.google.com/u/0/apps/cb0c2a7b-7f04-4e74-aed4-a5451564b080?showAssistant=true&showPreview=true"
   },
   {
     "id": "02",
-    "authUrl": "https://aistudio.google.com/u/0/apps/354227d7-d060-4679-a70b-b6fa0d5de3fa?showPreview=true&showAssistant=true"
+    "authUrl": "https://aistudio.google.com/u/0/apps/26ef9966-5fdc-4e18-8ed8-f0ece8d15022?showAssistant=true&showPreview=true"
   },
   {
     "id": "03",
-    "authUrl": "https://aistudio.google.com/u/0/apps/734968dc-2dde-40ea-ad46-cf26e4fa8e9f?showPreview=true&showAssistant=true"
+    "authUrl": "https://aistudio.google.com/u/0/apps/bfc7d4db-6aa0-4418-b976-cb2f39d969b5?showAssistant=true&showPreview=true"
   },
   {
     "id": "04",
-    "authUrl": "https://aistudio.google.com/u/0/apps/4856aee2-f951-4afe-a976-870110a3293c?showPreview=true&showAssistant=true"
+    "authUrl": "https://aistudio.google.com/u/0/apps/5712f94d-b802-4955-b6d1-2d44d829f498?showAssistant=true&showPreview=true"
   },
   {
     "id": "05",
-    "authUrl": "https://aistudio.google.com/u/0/apps/60e714ee-1a2d-48ad-bfca-b65f2a57ca01?showPreview=true&showAssistant=true"
-  },
-  {
-    "id": "06",
-    "authUrl": "https://aistudio.google.com/u/0/apps/f67c741a-7baa-4719-8c96-51966c492290?showPreview=true&showAssistant=true"
-  },
-  {
-    "id": "07",
-    "authUrl": "https://aistudio.google.com/u/0/apps/e5b181ba-41b8-4a85-b0a2-0d4ae9eb6954?showPreview=true&showAssistant=true"
-  },
-  {
-    "id": "08",
-    "authUrl": "https://aistudio.google.com/u/0/apps/fa3a4d15-1fbf-4b1e-abd1-c03ad0d138e1?showPreview=true&showAssistant=true"
-  },
-  {
-    "id": "09",
-    "authUrl": "https://aistudio.google.com/u/0/apps/d3080a2b-abf9-46e3-a719-d0fb67b1a37a?showPreview=true&showAssistant=true"
+    "authUrl": "https://aistudio.google.com/u/0/apps/0b943f50-e0fa-4163-b0a9-ffb1369b5ef6?showAssistant=true&showPreview=true"
   }
 ]
