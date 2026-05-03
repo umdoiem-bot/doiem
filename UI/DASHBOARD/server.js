@@ -4,11 +4,6 @@ const { Server } = require('socket.io');
 const proxy = require('express-http-proxy');
 const { spawn, exec } = require('child_process');
 const path = require('path');
-const { addExtra } = require('puppeteer-extra');
-const puppeteerCore = require('puppeteer-core');
-const puppeteerAuth = addExtra(puppeteerCore);
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteerAuth.use(StealthPlugin());
 
 const fs = require('fs');
 const ROOT_DIR = path.join(__dirname, '..', '..');
@@ -18,8 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// ── Estado do Autenticador de Ambiente ──────────────────────────────────────
-let authBrowser = null, authPage = null, authClient = null;
+// ── Estado do Cockpit ───────────────────────────────────────────────────────
 
 app.use(express.static(__dirname));
 
@@ -27,93 +21,16 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/auth', (req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>🛡️ SOBERANO — Auth Engine</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{background:#0a0a0f;color:#e0e0e0;font-family:'Courier New',monospace}
-        header{background:linear-gradient(90deg,#0d1117,#1a1f2e);border-bottom:1px solid #00ff9530;padding:14px 24px;display:flex;align-items:center;gap:12px}
-        header h1{font-size:.9rem;color:#00ff95;letter-spacing:4px}
-        .badge{background:#ff4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:.65rem}
-        #bar{background:#111;border-bottom:1px solid #1e2430;padding:6px 24px;font-size:.72rem;color:#666;display:flex;align-items:center;gap:15px}
-        #bar span{color:#00ff95}
-        #url-input{background:#050505;border:1px solid #1e2430;color:#00ff95;padding:4px 8px;width:500px;font-family:monospace;font-size:.72rem;outline:none}
-        .btn-nav{background:#1e2430;color:#00ff95;border:1px solid #00ff9540;padding:4px 10px;cursor:pointer;font-size:.65rem}
-        #wrap{display:flex;justify-content:center;padding:16px;background:#070b12;min-height:calc(100vh - 100px)}
-        #screen{display:block;max-width:100%;border:1px solid #00ff9540;border-radius:4px;cursor:crosshair;background:#000;box-shadow:0 0 30px #00ff9515}
-        #ctrl{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:99}
-        .btn{padding:10px 18px;border:none;border-radius:4px;font-family:'Courier New',monospace;font-size:.75rem;cursor:pointer;letter-spacing:2px;transition:all .2s}
-        .save{background:#00ff95;color:#000;font-weight:700}
-        .save:hover{background:#00cc77}
-        .rel{background:#1e2430;color:#00ff95;border:1px solid #00ff9540}
-        #log{position:fixed;bottom:20px;left:20px;background:#0d1117cc;border:1px solid #1e2430;padding:10px 14px;border-radius:4px;font-size:.68rem;color:#666;max-width:300px;backdrop-filter:blur(8px)}
-        #log p{color:#00ff95;margin-bottom:4px;font-size:.62rem}
-        .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#00ff95;color:#000;padding:10px 24px;border-radius:4px;font-weight:700;font-size:.85rem;display:none;z-index:200;letter-spacing:2px}
-        #start-btn{margin:16px auto;display:block;padding:12px 32px;background:#00ff95;color:#000;border:none;border-radius:4px;font-family:'Courier New',monospace;font-size:.9rem;font-weight:700;cursor:pointer;letter-spacing:3px}
-    </style>
-</head>
-<body>
-<header>
-    <h1>🛡️ SOBERANO // AUTH ENGINE</h1>
-    <div class="badge">IP: SERVIDOR</div>
-</header>
-<div id="bar">
-    STATUS: <span id="st">AGUARDANDO</span> &nbsp;|&nbsp; 
-    IP: <span id="ip">...</span> &nbsp;|&nbsp; 
-    URL: <input type="text" id="url-input" placeholder="https://..." onkeydown="if(event.key==='Enter') nav()">
-    <button class="btn-nav" onclick="nav()">IR</button>
-</div>
-<div id="wrap">
-    <div style="text-align: center; margin-top: 50px;">
-        <button id="start-btn" onclick="startAuth()" style="padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #00ff95; color: black; border: none; border-radius: 4px; font-weight: bold;">
-            ▶ INICIAR CHROME (JANELA NATIVA DO WINDOWS)
-        </button>
-        <p style="margin-top:20px; color:#888;">Ao clicar, uma janela real do Chrome abrirá. Faça o login lá.<br/>Depois volte aqui e clique em Salvar Sessão.</p>
-    </div>
-</div>
-<div class="toast" id="toast">✅ SESSÃO (COOKIES) EXTRAÍDA COM SUCESSO! O CLUSTER ESTÁ ARMADO!</div>
-<div id="ctrl">
-    <button class="btn save" onclick="save()">💾 SALVAR SESSÃO DA JANELA</button>
-</div>
-<div id="log"><p>// AUTH LOG</p><div id="lb">Operação exclusiva para ambiente Windows.</div></div>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const sock = io('/auth');
-const lb = document.getElementById('lb');
-const st = document.getElementById('st');
-const ip = document.getElementById('ip');
+// CLUSTER DE CONFIGURAÇÕES (Persistência e Estado Vivo)
+let targets = {};
+try {
+    if (fs.existsSync(REGISTRY_PATH)) {
+        const raw = JSON.parse(fs.readFileSync(REGISTRY_PATH));
+        raw.forEach(item => { targets[item.id] = item.authUrl; });
+    }
+} catch (e) { console.log("Erro ao carregar REGISTRY.json:", e.message); }
 
-sock.on('connect', () => { st.textContent='ONLINE (WINDOWS NATIVE)'; st.style.color='#00ff95'; });
-sock.on('ip', v => ip.textContent = v);
-sock.on('log', m => lb.textContent = '> ' + m);
-
-sock.on('saved', () => {
-    const t=document.getElementById('toast');
-    t.style.display='block';
-    setTimeout(()=>t.style.display='none',5000);
-});
-
-function startAuth() { 
-    sock.emit('start'); 
-    lb.textContent='Abrindo Chrome no Windows...'; 
-}
-function save() { sock.emit('save'); }
-function nav() { 
-    const urlInput = document.getElementById('url-input').value;
-    const target = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
-    sock.emit('goto', target); 
-    lb.textContent='Enviando comando de navegação: ' + target;
-}
-<\/script>
-</body></html>`);
-});
-
-// CLUSTER DE CONFIGURAÇÕES (Persistência)
-const targets = {};
+const activeAgents = new Set(); 
 
 function saveRegistry() {
     const data = Object.keys(targets).map(id => ({ id, authUrl: targets[id] }));
@@ -166,10 +83,13 @@ function startMotor() {
             } catch (e) {}
 
             // Caso não seja JSON, trata como log comum
-            // Regex aprimorado: busca o ID ignorando o primeiro par de colchetes (timestamp)
+            // Regex aprimorado: busca o ID ignorando o primeiro par de colchetes se for timestamp
             const matches = [...line.matchAll(/\[(.*?)\]/g)];
-            const id = matches.length > 1 ? matches[1][1] : (matches.length > 0 ? matches[0][1] : null);
+            const id = matches.length > 1 ? matches[1][1] : 
+                       (matches.length === 1 && !matches[0][1].includes(':') ? matches[0][1] : null);
             
+            if (id && id !== 'SYSTEM') activeAgents.add(id);
+
             io.emit('signal', { id, msg: line });
             console.log(line); // O terminal principal só exibe logs humanos, ignorando JSON base64
         });
@@ -178,6 +98,7 @@ function startMotor() {
     soberanoProcess.on('close', () => {
         console.log('Motor encerrado. Reiniciando...');
         soberanoProcess = null;
+        activeAgents.clear();
         setTimeout(startMotor, 3000);
     });
 }
@@ -193,11 +114,14 @@ io.on('connection', (socket) => {
 
     // SINCRONIZA INSTÂNCIAS JÁ ATIVAS OU SALVAS
     Object.keys(targets).forEach(id => {
-        socket.emit('instance-ready', { id, authUrl: targets[id] });
+        socket.emit('instance-ready', { id, authUrl: targets[id], active: activeAgents.has(id) });
     });
 
     socket.on('register', (data) => {
-        const id = Date.now().toString();
+        // Geração Sequencial Determinística (Ex: 01, 02, 03...)
+        const count = Object.keys(targets).length;
+        const id = (count + 1).toString().padStart(2, '0');
+        
         targets[id] = data.authUrl;
         saveRegistry();
         io.emit('instance-ready', { id, authUrl: data.authUrl });
@@ -208,6 +132,7 @@ io.on('connection', (socket) => {
         const authUrl = data.authUrl || targets[id];
         
         if (id && authUrl) {
+            if (activeAgents.has(id)) return console.log(`[WARN] Agente ${id} já está ativo.`);
             sendToMotor({ type: 'LAUNCH', id, authUrl });
             console.log(`[EXEC] Comando de lançamento enviado: ${id}`);
         }
@@ -215,6 +140,7 @@ io.on('connection', (socket) => {
 
     socket.on('terminate', (id) => {
         sendToMotor({ type: 'TERMINATE', id });
+        activeAgents.delete(id);
         delete targets[id];
         saveRegistry();
     });
@@ -228,88 +154,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// ── NAMESPACE DO AUTENTICADOR (/auth) ──────────────────────────────────────
-const authNS = io.of('/auth');
-
-async function launchAuthBrowser() {
-    if (authBrowser) return;
-    
-    let chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    if (!fs.existsSync(chromePath)) {
-        // Fallback para Program Files (x86) comuns em Windows
-        const altPath = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
-        if (fs.existsSync(altPath)) {
-            chromePath = altPath;
-        } else {
-            try { chromePath = require('puppeteer').executablePath(); } catch(e) {
-                throw new Error('Chrome não localizado no Windows. Instale o Google Chrome ou defina CHROME_PATH.');
-            }
-        }
-    }
-
-    const PROFILE_DIR = path.join(ROOT_DIR, 'GHOST_PROFILE');
-    if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
-    
-    authBrowser = await puppeteerAuth.launch({
-        executablePath: chromePath, 
-        headless: false, // Abre a JANELA REAL DO CHROME NO WINDOWS! Vingança total contra Google.
-        userDataDir: PROFILE_DIR,
-        args: [
-            '--window-size=1280,800',
-            '--disable-infobars',
-            '--window-position=0,0'
-        ]
-    });
-    authPage = await authBrowser.newPage();
-    await authPage.setViewport({ width: 1280, height: 800 });
-    authClient = await authPage.createCDPSession();
-    await authClient.send('Network.enable');
-    
-    await authPage.goto('https://accounts.google.com/signin', { waitUntil: 'networkidle2', timeout: 0 });
-    logSistema('Chrome Aberto no Windows! Faça o login na interface e depois salve a Sessão no Dashboard.');
-}
-
-authNS.on('connection', async (socket) => {
-    try {
-        const resp = await fetch('https://api.ipify.org?format=json');
-        const data = await resp.json();
-        socket.emit('ip', data.ip);
-    } catch(e) { socket.emit('ip','n/a'); }
-
-    socket.on('start', async () => {
-        await launchAuthBrowser().catch(e => socket.emit('log', 'Erro: ' + e.message));
-        socket.emit('log', 'Navegador aberto! Verifique sua barra de tarefas/tela.');
-    });
-
-    socket.on('reload', async () => { 
-        if (authPage) { 
-            await authPage.reload({ waitUntil: 'networkidle2' }).catch(() => {}); 
-            socket.emit('log','Recarregado.'); 
-        } 
-    });
-
-    socket.on('goto', async (url) => {
-        if (authPage) {
-            try {
-                await authPage.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-                socket.emit('log', 'Navegação concluída.');
-            } catch(e) { socket.emit('log', 'Erro ao carregar: ' + e.message); }
-        }
-    });
-
-    socket.on('save', async () => {
-        if (!authClient) return socket.emit('log', 'Navegador não iniciado.');
-        try {
-            const { cookies } = await authClient.send('Network.getCookies');
-            fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
-            socket.emit('log', `${cookies.length} cookies salvos em COOKIES.json!`);
-            socket.emit('saved');
-            logSistema(`Auth: ${cookies.length} cookies extraídos e salvos.`);
-        } catch(e) { socket.emit('log', 'Erro ao salvar: ' + e.message); }
-    });
-});
-
-function logSistema(msg) { console.log(`⚙️  ${msg}`); }
+// ── Inicialização do Sistema ───────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
@@ -330,14 +175,28 @@ server.listen(PORT, () => {
 
     startMotor();
     console.log(`⚙️  SISTEMA EM STANDBY: Aguardando comandos do Cockpit...`);
+
+    // Tenta localizar o binário do Chromium para abrir o Cockpit
+    let CHROME_BIN = null;
+    try {
+        const puppeteer = require('puppeteer');
+        const pPath = puppeteer.executablePath();
+        if (fs.existsSync(pPath)) CHROME_BIN = pPath;
+    } catch (e) {}
+
+    const url = `http://localhost:${PORT}`;
     
-    // Abre a interface visual automaticamente no CHROME nativo
-    exec(`start chrome "http://localhost:${PORT}"`, (err) => {
-        if (err) {
-            // Fallback caso chrome não esteja no PATH
-            exec(`start "" "http://localhost:${PORT}"`);
-        }
-    });
+    if (CHROME_BIN) {
+        console.log(`🚀 Abrindo Cockpit via Chromium: ${CHROME_BIN}`);
+        exec(`"${CHROME_BIN}" "${url}"`, (err) => {
+            if (err) exec(`start "" "${url}"`);
+        });
+    } else {
+        // Fallback para navegador padrão do sistema
+        exec(`start chrome "${url}"`, (err) => {
+            if (err) exec(`start "" "${url}"`);
+        });
+    }
 });
 
 server.on('error', (e) => {

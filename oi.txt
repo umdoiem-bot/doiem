@@ -1,4 +1,0 @@
-https://ais-dev-nzsc2jcj573ngryiazkjhv-2357520166.us-west2.run.app/?tabId=primary&standalone=true
-
-
-bash /app/applet/oi.sh

@@ -170,6 +170,24 @@
         }
         .active-label { animation: pulse 2s infinite; }
 
+        /* MODAL PREVIEW */
+        #preview-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(15px);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--surface); border: 1px solid var(--accent);
+            border-radius: 12px; padding: 10px; position: relative;
+            max-width: 90%; max-height: 90%; box-shadow: 0 0 50px var(--accent-glow);
+        }
+        #preview-img { max-width: 100%; height: auto; border-radius: 6px; }
+        .close-modal {
+            position: absolute; top: -40px; right: 0; color: #fff;
+            cursor: pointer; font-size: 1.2rem; background: var(--danger);
+            padding: 5px 15px; border-radius: 4px;
+        }
+
     </style>
 </head>
 
@@ -188,6 +206,13 @@
     </div>
 
     <div id="instance-list"></div>
+
+    <div id="preview-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="document.getElementById('preview-modal').style.display='none'">CLOSE [X]</span>
+            <img id="preview-img" src="" alt="Instance Preview">
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -216,8 +241,8 @@
 
         socket.on('instance-ready', (data) => {
             if (!registry[data.id]) {
-                registry[data.id] = { authUrl: data.authUrl, active: false };
-                createRow(data.id);
+                registry[data.id] = { authUrl: data.authUrl, active: data.active };
+                createRow(data.id, data.active);
                 total++;
                 document.getElementById('count').innerText = total;
             }
@@ -237,31 +262,35 @@
         socket.on('preview-data', (data) => {
             const modal = document.getElementById('preview-modal');
             const img = document.getElementById('preview-img');
-            img.src = 'data:image/webp;base64,' + data.image;
+            img.src = 'data:image/jpeg;base64,' + data.image; // MUDANÇA PARA JPEG
             modal.style.display = 'flex';
         });
+
+        function requestPreview(id) {
+            socket.emit('request-preview', id);
+        }
 
         function openLink(id) {
             const url = registry[id].authUrl;
             if (url) window.open(url, '_blank');
         }
 
-        function createRow(id) {
+        function createRow(id, active = false) {
             const container = document.getElementById('instance-list');
             const row = document.createElement('div');
             row.className = 'instance-row row';
             row.dataset.id = id;
             row.innerHTML = `
                 <div class="status-indicator">
-                    <div class="status-dot"></div>
-                    <div class="status-label">Standby</div>
+                    <div class="status-dot ${active ? 'active' : ''}"></div>
+                    <div class="status-label ${active ? 'active-label' : ''}">${active ? 'ACTIVE' : 'Standby'}</div>
                 </div>
-                <div class="id-badge">${id.substring(id.length - 8)}</div>
+                <div class="id-badge">AGENTE ${id}</div>
                 <div class="last-signal">Awaiting command...</div>
                 <div class="controls">
                     <input type="text" class="strike-input" placeholder="DEEP STRIKE CODE..." onkeydown="if(event.key==='Enter') sendStrike('${id}', this)">
-                    <button class="btn-action btn-start" onclick="manualStart('${id}')">Start</button>
-                    <button class="btn-action btn-preview" style="border-color: #f1c40f; color: #f1c40f;" onclick="openLink('${id}')" title="Abrir Link Real">🔗</button>
+                    <button class="btn-action btn-start" style="display: ${active ? 'none' : 'inline-block'}" onclick="manualStart('${id}')">Start</button>
+                    <button class="btn-action" style="border-color: #f1c40f; color: #f1c40f;" onclick="requestPreview('${id}')" title="Visualizar Live Engine">👁️ PREVIEW</button>
                     <button class="btn-action btn-terminate" onclick="terminate('${id}')">Kill</button>
                 </div>
             `;

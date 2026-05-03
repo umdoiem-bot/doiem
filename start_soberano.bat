@@ -6,7 +6,7 @@ color 0A
 
 :: Configurações de Performance Noyron
 set PORT=3000
-set NODE_OPTIONS=--max-old-space-size=4096
+set NODE_OPTIONS=--max-old-space-size=16384
 
 cls
 echo.
