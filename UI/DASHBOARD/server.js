@@ -159,7 +159,7 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`\n===================================================`);
-    console.log(`SENTINEL MULTI-TAB HUB: http://localhost:${PORT}`);
+    console.log(`SOBERANO II — HF ENGINE: http://localhost:${PORT}`);
     console.log(`===================================================\n`);
 
     // CARREGAR REGISTRO EXISTENTE (Silent Load)

@@ -1,6 +1,6 @@
 /**
- * SOBERANO2.js — MOTOR MULTI-TAB v5.0
- * Gerencia múltiplas frentes de ataque em um único navegador Chrome.
+ * SOBERANO2.js — HF ENGINE v6.2
+ * High-Frequency Deterministic Execution & Cluster Consolidation.
  */
 const { addExtra } = require('puppeteer-extra');
 const puppeteerCore = require('puppeteer-core');
@@ -264,7 +264,7 @@ async function launchStrike(id, authUrl) {
                     await page.mouse.wheel({ deltaY: 1 });
                     await page.keyboard.press('Shift');
                 } catch (e) { }
-            }, 30000); // Pulso de 30s
+            }, 15000); // HF Pulse: 15s (Otimização do Caminho Crítico)
 
             // FASE 4: COLD REFRESH (Ciclo de Segurança Reduzido)
             const refreshLoop = setInterval(async () => {
